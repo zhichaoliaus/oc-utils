@@ -33,18 +33,18 @@
 
 #ifdef USE_SIM_TO_TEST
 //  #include "svdpi.h"
-//  extern void CFG_NOP( const char*);              
-//  extern void CFG_NOP2(const char*, int, int, int*);              
+//  extern void CFG_NOP( const char*);
+//  extern void CFG_NOP2(const char*, int, int, int*);
 #endif
 
 
-extern void my_test();   
+extern void my_test();
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr);
 
 int main(int argc, char *argv[])
 {
   static int verbose_flag = 0;
-  static int dualspi_mode_flag = 1; //default to assume x8 spi programming/loading
+  static int dualspi_mode_flag = 0; //default to assume x8 spi programming/loading
   static struct option long_options[] =
   {
     /* These options set a flag. */
@@ -52,30 +52,23 @@ int main(int argc, char *argv[])
     {"brief",   no_argument,       &verbose_flag, 0},
     {"singlespy",    no_argument,  &dualspi_mode_flag, 0},
     {"dualspi",      no_argument,  &dualspi_mode_flag, 1},
-    {"image_file1",  required_argument, 0, 'a'},
-    {"image_file2",  required_argument, 0, 'b'},
+    {"image_file",  required_argument, 0, 'a'},
     {"devicebdf",    required_argument, 0, 'c'},
     {"startaddr",    required_argument, 0, 'd'},
           {0, 0, 0, 0}
   };
 
   char binfile[1024];
-  char binfile2[1024];
   char cfgbdf[1024];
   char cfg_file[1024];
   int CFG;
   int start_addr=0;
   char temp_addr[256];
-  //if (argc < 3) {
-  //  printf("Usage: capi_flash <primary_bin_file> <secondary_bin_file> <card#>\n\n");
-  //}
-  //strcpy (binfile, argv[1]);
-  //strcpy (binfile2, argv[2]);
-  //strcpy(cfgbdf, argv[3]);
+
   while(1) {
       int option_index = 0;
       int c;
-      c = getopt_long (argc, argv, "a:b:c:",
+      c = getopt_long (argc, argv, "a:b:c:e:",
                        long_options, &option_index);
 
       /* Detect the end of the options. */
@@ -95,68 +88,33 @@ int main(int argc, char *argv[])
           break;
 
         case 'a':
-          printf("Primary Bitstream: %s\n", optarg);
+          printf("PR Bitstream: %s\n", optarg);
           strcpy(binfile,optarg);
-          break;
-
-        case 'b':
-          printf("Secondary Bitstream: %s\n", optarg);
-          strcpy(binfile2,optarg);
           break;
 
         case 'c':
           strcpy(cfgbdf,optarg);
-	  printf("Target Device: %s\n", cfgbdf);
+	        printf("Target Device: %s\n", cfgbdf);
           break;
 
-	case 'd':
-	  memcpy(temp_addr,&optarg[2],8);
-	  start_addr = (int)strtol(temp_addr,NULL,16);
-	  printf("Start Address (same address for SPIx8 on both parts): %d\n", start_addr);
-        case '?':
-          /* getopt_long already printed an error message. */
-          break;
+      	case 'd':
+      	  memcpy(temp_addr,&optarg[2],8);
+      	  start_addr = (int)strtol(temp_addr,NULL,16);
+      	  printf("Start Address (same address for SPIx8 on both parts): %d\n", start_addr);
+              case '?':
+                /* getopt_long already printed an error message. */
+                break;
 
-        default:
-          abort ();
+              default:
+                abort ();
         }
-  }
-  if(verbose_flag) {
-    printf("Verbose in use\n");
-  } else {
-   printf("Verbose not in use\n");
-  }
-  if(dualspi_mode_flag) {
-    printf("Using spi x8 mode\n");
-    if(binfile[0] == '\0') {
-      printf("ERROR: Must supply primary bitstream\n");
-      exit(-1);
     }
-    else {printf("Primary bitstream: %s !\n", binfile);}
-    if(binfile2[0] == '\0') {
-      printf("ERROR: Must supply secondary bitstream\n");
-      exit(-1);
-    }
-    if(cfgbdf[0] == '\0') {
-      printf("ERROR: Must supply target device\n");
-      exit(-1);
-    } 
-  } else {
-    printf ("Using spi x4 mode\n");
-    if(binfile[0] == '\0') {
-      printf("ERROR: Must supply primary bitstream\n");
-      exit(-1);
-    }  
-    if(cfgbdf[0] == '\0') {
-      printf("ERROR: Must supply target device\n");
-      exit(-1);
-    } 
-  }
 
   printf("Hello world - TRC_CONFIG = %d, TRC_AXI = %d, TRC_FLASH = %d, TRC_FLASH_CMD = %d\n", TRC_CONFIG, TRC_AXI, TRC_FLASH, TRC_FLASH_CMD);
 
   u32 temp;
   int vendor,device, subsys;
+  int BIN,i,j;
   strcpy(cfg_file,"/sys/bus/pci/devices/");
   strcat(cfg_file,cfgbdf);
   strcat(cfg_file,"/config");
@@ -183,56 +141,97 @@ int main(int argc, char *argv[])
   else {
     printf("This card has the flash controller!\n");
   }
-/*
-  if ((CFG = open(cfg_file, O_RDWR)) < 0) {
-    printf("Can not open %s\n",cfg_file);
-    exit(-1);
-  }
-
-  //TODO/FIXME: passing this on to global cfg descriptor
-  if ((CFG_FD = open(cfg_file, O_RDWR)) < 0) {
-    printf("Can not open %s\n",cfg_file);
-    exit(-1);
-  }
-
-  lseek(CFG, 0, SEEK_SET);
-  read(CFG, &temp, 4);
-  printf("Device ID: %04X\n", device);
-  printf("Vendor ID: %04X\n", vendor);
-
-  lseek(CFG, 44, SEEK_SET);
-  read(CFG, &temp, 4);
-  subsys = (temp >> 16) & 0xFFFF;
-*/
 
   TRC_FLASH_CMD = TRC_OFF;
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
-  printf("Beginning qspi master core setup\n");
-  QSPI_setup();          // Reset and set up Quad SPI core
-  read_QSPI_regs();
-
   TRC_AXI = TRC_OFF;
   TRC_CONFIG = TRC_OFF;
 
-//ICAP_setup();          // TODO: Create this after can load and read back FLASH image
-  read_ICAP_regs();
-
-  printf("Finished initial qspi master setup\n");
-
-  printf("Programming Primary SPI with primary bitstream %s\n",binfile);
-  update_image(SPISSR_SEL_DEV1,binfile,cfgbdf,start_addr);
-  if(dualspi_mode_flag) {
-  printf("Programming Secondary SPI with secondary bitstream %s\n",binfile2);
-  update_image(SPISSR_SEL_DEV2,binfile2,cfgbdf,start_addr);
+  off_t fsize;
+  struct stat tempstat;
+  int num_package_icap, icap_burst_size, num_burst, num_package_lastburst, dif;
+  u32 wdata, wdatatmp, rdata, burst_size;
+  u32 CR_Write_clear = 0, CR_Write_cmd = 1, SR_ICAPEn_EOS=5;
+  // Working on the primary bin file
+  printf("Processing bin file: %s\n", binfile);
+  if ((BIN = open(binfile, O_RDONLY)) < 0) {
+    printf("ERROR: Can not open %s\n",binfile);
+    exit(-1);
   }
+  if (stat(binfile, &tempstat) != 0) {
+    fprintf(stderr, "Cannot determine size of %s: %s\n", binfile, strerror(errno));
+    exit(-1);
+  } else {
+    fsize = tempstat.st_size;
+  }
+  num_package_icap = fsize/4 + (fsize % 4 != 0);
+  rdata = 0;
+  while (rdata != SR_ICAPEn_EOS) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+  }
+  printf("ICAP EOS done.\n");
+  read_ICAP_regs();
+  icap_burst_size = axi_read(FA_ICAP, FA_ICAP_WFV , FA_EXP_OFF, FA_EXP_0123, "read_ICAP_regs");
+  num_burst = num_package_icap / icap_burst_size;
+  num_package_lastburst = num_package_icap - num_burst * icap_burst_size;
+  printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
+  printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n",num_burst, icap_burst_size, num_package_lastburst);
+  for(int i=0;i<num_burst;i++) {
+    if (i % 1000 == 0 ) {
+      printf("Working on burst: %d of %d.\n",i,num_burst);
+    }
+    for (int j=0;j<icap_burst_size;j++) {
+      dif = read(BIN,&wdatatmp,4);
+      wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);
+      axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+      rdata = 1;
+      while (rdata != CR_Write_clear) {
+        rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+      }
+      rdata = 0;
+      while (rdata != SR_ICAPEn_EOS) {
+        rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+      }
+    }
+    axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+    rdata = 1;
+    while (rdata != CR_Write_clear) {
+      rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+    }
+    rdata = 0;
+    while (rdata != SR_ICAPEn_EOS) {
+      rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+    }
+  }
+  printf("Working on the last burst.\n");
+  for (int i=0;i<num_package_lastburst;i++) {
+    dif = read(BIN,&wdatatmp,4);
+    wdata = ((wdatatmp>>24)&0xff) | ((wdatatmp<<8)&0xff0000) | ((wdatatmp>>8)&0xff00) | ((wdatatmp<<24)&0xff000000);
+    axi_write(FA_ICAP, FA_ICAP_WF, FA_EXP_OFF, FA_EXP_0123, wdata, "ICAP: write WF (4B to Keyhole Reg)");
+    rdata = 1;
+    while (rdata != CR_Write_clear) {
+      rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+    }
+    rdata = 0;
+    while (rdata != SR_ICAPEn_EOS) {
+      rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+    }
+  }
+  axi_write(FA_ICAP, FA_ICAP_CR, FA_EXP_OFF, FA_EXP_0123, CR_Write_cmd, "ICAP: write CR (initiate bitstream writing)");
+  rdata = 1;
+  while (rdata != CR_Write_clear) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_CR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read CR (monitor ICAPEn)");
+  }
+  rdata = 0;
+  while (rdata != SR_ICAPEn_EOS) {
+    rdata = axi_read(FA_ICAP, FA_ICAP_SR  , FA_EXP_OFF, FA_EXP_0123, "ICAP: read SR (monitor ICAPEn)");
+  }
+  close(BIN);
+  printf("Finished PR Progamming Sequence\n");
 
-  printf("Finished Progamming Sequence\n");
-  
-  Check_Accumulated_Errors();
-
-  return 0;  // Incisive simulator doesn't like anything other than 0 as return value from main() 
+  return 0;  // Incisive simulator doesn't like anything other than 0 as return value from main()
 }
 
 int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_addr)
@@ -347,7 +346,7 @@ int update_image(u32 devsel,char binfile[1024], char cfgbdf[1024], int start_add
        }
    }
  }
- 
+
  evt = time(NULL);
  printf("\n\n");
 
@@ -400,7 +399,7 @@ void my_test(void)
 //CFG_NOP2("from my_main", 0x34, 0x87654321, &rdata_i);
 //rdata = (u32) rdata_i;
 //printf("     CFG_NOP2 returned rdata_i = h%8x, rdata = h%8x\n",rdata_i, rdata);
-  
+
 //printf("Call config_write");
 //config_write(CFG_FLASH_DATA, 0x11223344, 4, "TEST config_write");
 //
@@ -452,7 +451,7 @@ void my_test(void)
 // flash_op(SPISSR_SEL_DEV1, 0xC9, 0x89ABCDEF, 4       , 10       , 2        , wdata  , rdata  , FO_DIR_XCHG, "print test 13");
 
 // flash_op(SPISSR_SEL_DEV1, 0x6B, 0x00000100, 3       , 8        , 16       , wdata  , rdata  , FO_DIR_XCHG, "read mem 1");
- 
+
 // TRC_FLASH = TRC_ON;
 // TRC_AXI   = TRC_ON;
 
@@ -463,7 +462,7 @@ void my_test(void)
    fw_Extended_Address_Register(SPISSR_SEL_DEV1, 0x00);   // bit [0] is upper address bit
    rdata[0] = fr_Extended_Address_Register(SPISSR_SEL_DEV1);
    printf("\nExtended Address Register = %2.2X after writing to 0\n", rdata[0]);
- 
+
    fw_Write_Enable             (SPISSR_SEL_DEV1);
    fw_Extended_Address_Register(SPISSR_SEL_DEV1, 0x01);   // bit [0] is upper address bit
    rdata[0] = fr_Extended_Address_Register(SPISSR_SEL_DEV1);
@@ -471,7 +470,7 @@ void my_test(void)
 
    fr_wait_for_WRITE_IN_PROGRESS_to_clear(SPISSR_SEL_DEV1);
 
-   
+
    TRC_FLASH = TRC_ON;
 
    fr_Read(SPISSR_SEL_DEV1, 0x00000100, 1024, rdata);  // WARNING: calling fr_Read somehow changes wdata[0,1,2] to FF. Can't figure out why
@@ -514,7 +513,3 @@ void my_test(void)
 
   return;
 }
-
-
-
-
