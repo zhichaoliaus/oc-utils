@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
   printf("Flashing PR bit file of size %ld bytes. Total package: %d. \n",fsize, num_package_icap);
   printf("Total burst to transfer: %d with burst size of %d. Number of package is last burst: %d.\n",num_burst, icap_burst_size, num_package_lastburst);
   for(int i=0;i<num_burst;i++) {
-    if (i % 1000 == 0 ) {
+    if (i % 100 == 0 ) {
       printf("Working on burst: %d of %d.\n",i,num_burst);
     }
     for (int j=0;j<icap_burst_size;j++) {
